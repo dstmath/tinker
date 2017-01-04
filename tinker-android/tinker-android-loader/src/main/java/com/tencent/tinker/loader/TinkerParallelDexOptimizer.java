@@ -23,6 +23,7 @@ import com.tencent.tinker.loader.shareutil.SharePatchFileUtil;
 import dalvik.system.DexFile;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.concurrent.CountDownLatch;
@@ -35,7 +36,7 @@ import java.util.concurrent.atomic.AtomicInteger;
  */
 
 public final class TinkerParallelDexOptimizer {
-    private static final String TAG = "ParallelDexOptimizer";
+    private static final String TAG = "Tinker.ParallelDex";
 
     /**
      * Optimize (trigger dexopt or dex2oat) dexes.
@@ -94,6 +95,7 @@ public final class TinkerParallelDexOptimizer {
     }
 
     public interface ResultCallback {
+        void onStart(File dexFile, File optimizedDir);
         void onSuccess(File dexFile, File optimizedDir);
         void onFailed(File dexFile, File optimizedDir, Throwable thr);
     }
@@ -116,6 +118,15 @@ public final class TinkerParallelDexOptimizer {
         @Override
         public void run() {
             try {
+                if (dexFile == null || !dexFile.exists()) {
+                    if (callback != null) {
+                        callback.onFailed(dexFile, optimizedDir,
+                            new IOException("dex file " + dexFile.getAbsolutePath() + " is not exist!"));
+                    }
+                }
+                if (callback != null) {
+                    callback.onStart(dexFile, optimizedDir);
+                }
                 DexFile.loadDex(dexFile.getAbsolutePath(), SharePatchFileUtil.optimizedPathFor(this.dexFile, this.optimizedDir), 0);
                 successCount.incrementAndGet();
                 if (callback != null) {
