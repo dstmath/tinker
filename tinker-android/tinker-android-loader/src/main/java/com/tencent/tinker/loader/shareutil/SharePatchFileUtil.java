@@ -129,7 +129,7 @@ public class SharePatchFileUtil {
     }
 
     public static final boolean isLegalFile(File file) {
-        return file != null && file.exists() && file.isFile() && file.length() > 0;
+        return file != null && file.exists() && file.canRead() && file.isFile() && file.length() > 0;
     }
 
     /**
@@ -271,6 +271,12 @@ public class SharePatchFileUtil {
     }
 
     public static void copyFileUsingStream(File source, File dest) throws IOException {
+        if (!SharePatchFileUtil.isLegalFile(source) || dest == null) {
+            return;
+        }
+        if (source.getAbsolutePath().equals(dest.getAbsolutePath())) {
+            return;
+        }
         FileInputStream is = null;
         FileOutputStream os = null;
         File parent = dest.getParentFile();

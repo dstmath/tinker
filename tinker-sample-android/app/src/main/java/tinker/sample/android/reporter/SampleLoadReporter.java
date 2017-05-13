@@ -21,14 +21,11 @@ import android.os.Looper;
 import android.os.MessageQueue;
 
 import com.tencent.tinker.lib.reporter.DefaultLoadReporter;
-import com.tencent.tinker.lib.util.TinkerLog;
+import com.tencent.tinker.lib.util.UpgradePatchRetry;
 import com.tencent.tinker.loader.shareutil.ShareConstants;
-import com.tencent.tinker.loader.shareutil.SharePatchFileUtil;
-import com.tencent.tinker.loader.shareutil.ShareTinkerInternals;
 
 import java.io.File;
 
-import tinker.sample.android.util.UpgradePatchRetry;
 
 /**
  * optional, you can just use DefaultLoadReporter
@@ -56,26 +53,19 @@ public class SampleLoadReporter extends DefaultLoadReporter {
                 break;
         }
         Looper.getMainLooper().myQueue().addIdleHandler(new MessageQueue.IdleHandler() {
-            @Override public boolean queueIdle() {
-                UpgradePatchRetry.getInstance(context).onPatchRetryLoad();
+            @Override
+            public boolean queueIdle() {
+                if (UpgradePatchRetry.getInstance(context).onPatchRetryLoad()) {
+                    SampleTinkerReport.onReportRetryPatch();
+                }
                 return false;
             }
         });
     }
+
     @Override
     public void onLoadException(Throwable e, int errorCode) {
         super.onLoadException(e, errorCode);
-        switch (errorCode) {
-            case ShareConstants.ERROR_LOAD_EXCEPTION_UNCAUGHT:
-                String uncaughtString = SharePatchFileUtil.checkTinkerLastUncaughtCrash(context);
-                if (!ShareTinkerInternals.isNullOrNil(uncaughtString)) {
-                    File laseCrashFile = SharePatchFileUtil.getPatchLastCrashFile(context);
-                    SharePatchFileUtil.safeDeleteFile(laseCrashFile);
-                    // found really crash reason
-                    TinkerLog.e(TAG, "tinker uncaught real exception:" + uncaughtString);
-                }
-                break;
-        }
         SampleTinkerReport.onLoadException(e, errorCode);
     }
 
@@ -85,6 +75,13 @@ public class SampleLoadReporter extends DefaultLoadReporter {
         SampleTinkerReport.onLoadFileMisMatch(fileType);
     }
 
+    /**
+     * try to recover patch oat file
+     *
+     * @param file
+     * @param fileType
+     * @param isDirectory
+     */
     @Override
     public void onLoadFileNotFound(File file, int fileType, boolean isDirectory) {
         super.onLoadFileNotFound(file, fileType, isDirectory);
@@ -101,6 +98,12 @@ public class SampleLoadReporter extends DefaultLoadReporter {
     public void onLoadPatchInfoCorrupted(String oldVersion, String newVersion, File patchInfoFile) {
         super.onLoadPatchInfoCorrupted(oldVersion, newVersion, patchInfoFile);
         SampleTinkerReport.onLoadInfoCorrupted();
+    }
+
+    @Override
+    public void onLoadInterpret(int type, Throwable e) {
+        super.onLoadInterpret(type, e);
+        SampleTinkerReport.onLoadInterpretReport(type, e);
     }
 
     @Override
